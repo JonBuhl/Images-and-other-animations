@@ -5,7 +5,7 @@ from machine import Pin
 
 from button import create_btn_task
 from display import Screen, pwm
-from game import next_gen
+from game import next_gen_rnd, next_gen_snowfall, next_gen_game_of_life
 
 
 # --- Global vars. ------------------------------------------------------------
@@ -34,12 +34,18 @@ buffers = [
     Screen(), Screen(), Screen()
 ]
 
+# mode
+m_index = 0
+m = [{"fnc": next_gen_rnd, "needs_cycle_check": True}, {"fnc": next_gen_snowfall, "needs_cycle_check": True}, {"fnc": next_gen_game_of_life, "needs_cycle_check": True}]
 
 # --- Game  -------------------------------------------------------------------
 
 
 async def restart_game():
+    global m, m_index
+    
     print("Restart game")
+    
     await uasyncio.sleep_ms(GENERATION_DELAY * 2)
     buffers[0].clear()
     buffers[0].show()
@@ -47,38 +53,57 @@ async def restart_game():
     # fill random and calculate first generation without showing it
     # there is typically big visual step between first random generation and next one, so we will start with second gen.
     buffers[2].fill_random()
-    await next_gen(buffers[2], buffers[0])
+    
+    await m[m_index]["fnc"](buffers[2], buffers[0])
     buffers[0].show()
 
 
-async def game_task(t):
-    bi = 0  # current buffer index
-    osc = 0  # oscillation counter (we want to keep oscillate for while and then restart)
-    print("Start game (delay {} ms)".format(t))
-    try:
-        while True:
-            ni = (bi + 1) % 3
-            await next_gen(buffers[bi], buffers[ni])
-            buffers[ni].show()
 
-            # detect stable and oscillations in game
-            if buffers[bi] == buffers[ni]:
-                print("Stable")
-                await restart_game()
-                ni = 0
-            elif buffers[0] == buffers[2]:
-                print("Oscillate")
-                osc += 1
-                if osc >= 3:
+
+
+async def game_task(t):
+    global m, m_index
+    if m[m_index]["needs_cycle_check"] == True:
+        bi = 0  # current buffer index
+        osc = 0  # oscillation counter (we want to keep oscillate for while and then restart)
+        print("Start game (delay {} ms)".format(t))
+        try:
+            while True:
+                ni = (bi + 1) % 3
+                await m[m_index]["fnc"](buffers[bi], buffers[ni])
+                buffers[ni].show()
+
+                # detect stable and oscillations in game
+                if buffers[bi] == buffers[ni]:
+                    print("Stable")
                     await restart_game()
                     ni = 0
-                    osc = 0
+                elif buffers[0] == buffers[2]:
+                    print("Oscillate")
+                    osc += 1
+                    if osc >= 3:
+                        await restart_game()
+                        ni = 0
+                        osc = 0
 
-            bi = ni
+                bi = ni
+                await uasyncio.sleep_ms(t)
+
+        except uasyncio.CancelledError:
+            pass
+        
+    elif m[m_index]["needs_cycle_check"] == False:
+        bi = 0   #current buffer index
+        print("Start game (delay {} ms)".format(t))
+        try:    
+            while True:
+                ni = (bi + 1) % 3
+                await m["fnc"][m_index](buffers[bi], buffers[ni])
+                buffers[ni].show()
             await uasyncio.sleep_ms(t)
 
-    except uasyncio.CancelledError:
-        pass
+        except uasyncio.CancelledError:
+            pass
 
 
 async def mem_cleanup_info():
@@ -90,7 +115,7 @@ async def mem_cleanup_info():
         a = gc.mem_alloc()
         t = a+f
         print("MEM Used {} % (Free: {}, Alloc: {}, Tot: {})".format(100*a/t, f, a, t))
-        await uasyncio.sleep(10)
+        await uasyncio.sleep(40)
 
 
 # --- Button handlers ---------------------------------------------------------
@@ -117,9 +142,8 @@ def pwr_long_press():
 
 
 def mode_short_press():
-    print("Mode short press")
-    global current_t
-    current_t = (current_t + 1) % len(t_options)
+    global m, m_index
+    m_index = (m_index + 1) % len(m)
     restart_event.set()
 
 
