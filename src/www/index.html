@@ -1,0 +1,1032 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#101014">
+<title>Box of Life</title>
+<style>
+  :root {
+    --bg: #0e0e12;
+    --card: #17171d;
+    --line: #26262f;
+    --fg: #e9e9ef;
+    --muted: #8b8b99;
+    --accent: #ffb648;
+    --accent-dim: #4a3a1c;
+    --danger: #ff6b6b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 0 0 3rem;
+    background: var(--bg);
+    color: var(--fg);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  header {
+    padding: 1.2rem 1rem 0.8rem;
+    max-width: 720px;
+    margin: 0 auto;
+    display: flex;
+    align-items: baseline;
+    gap: 0.7rem;
+    flex-wrap: wrap;
+  }
+  h1 { font-size: 1.25rem; margin: 0; letter-spacing: 0.02em; }
+  h2 { font-size: 0.95rem; margin: 0 0 0.9rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+  h3 { font-size: 0.85rem; margin: 1.2rem 0 0.5rem; color: var(--muted); font-weight: 600; }
+  main { max-width: 720px; margin: 0 auto; padding: 0 1rem; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+  }
+  .pill {
+    font-size: 0.75rem;
+    color: var(--muted);
+    border: 1px solid var(--line);
+    border-radius: 99px;
+    padding: 0.15rem 0.6rem;
+  }
+  .pill.ok { color: var(--accent); border-color: var(--accent-dim); }
+  .pill.bad { color: var(--danger); border-color: #4a1c1c; }
+
+  .panel-row { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
+  canvas.led {
+    background: #08080a;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    width: 176px;
+    height: 176px;
+    image-rendering: pixelated;
+    flex: none;
+  }
+  .controls { flex: 1 1 220px; min-width: 200px; }
+
+  label { display: block; font-size: 0.8rem; color: var(--muted); margin: 0.7rem 0 0.25rem; }
+  label:first-child { margin-top: 0; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  input[type=text], input[type=password], input[type=number], select {
+    width: 100%;
+    background: #0d0d11;
+    border: 1px solid var(--line);
+    color: var(--fg);
+    border-radius: 8px;
+    padding: 0.5rem 0.6rem;
+    font: inherit;
+  }
+  .row { display: flex; gap: 0.6rem; }
+  .row > * { flex: 1; }
+
+  button {
+    background: #21212a;
+    border: 1px solid var(--line);
+    color: var(--fg);
+    border-radius: 9px;
+    padding: 0.55rem 0.8rem;
+    font: inherit;
+    cursor: pointer;
+  }
+  button:hover:not(:disabled) { border-color: #3a3a48; }
+  button:disabled { opacity: 0.45; cursor: default; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #221800; font-weight: 600; }
+  button.active { border-color: var(--accent); color: var(--accent); }
+  button.icon { padding: 0.35rem 0.55rem; font-size: 0.8rem; flex: none; }
+  button.danger { color: var(--danger); }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 0.5rem; }
+  .anim-item {
+    display: flex; align-items: center; gap: 0.4rem;
+    border: 1px solid var(--line); border-radius: 9px; padding: 0.4rem 0.4rem 0.4rem 0.7rem;
+    margin-bottom: 0.4rem;
+  }
+  .anim-item .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .anim-item .meta { color: var(--muted); font-size: 0.75rem; flex: none; }
+  .anim-item.active { border-color: var(--accent); }
+
+  .drop {
+    border: 2px dashed var(--line);
+    border-radius: 12px;
+    padding: 1.4rem 1rem;
+    text-align: center;
+    color: var(--muted);
+    cursor: pointer;
+  }
+  .drop.over { border-color: var(--accent); color: var(--accent); }
+
+  .opts { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0 0.8rem; }
+  .checks { display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 0.8rem; }
+  .checks label { display: flex; align-items: center; gap: 0.35rem; margin: 0; color: var(--fg); font-size: 0.85rem; }
+  .checks input { accent-color: var(--accent); }
+
+  .note { color: var(--muted); font-size: 0.8rem; margin: 0.6rem 0 0; }
+  .msg { font-size: 0.85rem; margin-top: 0.7rem; min-height: 1.2em; }
+  .msg.err { color: var(--danger); }
+  .msg.ok { color: var(--accent); }
+  details summary { cursor: pointer; color: var(--muted); font-size: 0.85rem; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Box of Life</h1>
+  <span id="status" class="pill">verbinde …</span>
+</header>
+
+<main>
+
+  <!-- ---------------- Anzeige ---------------- -->
+  <section class="card">
+    <h2>Anzeige</h2>
+    <div class="panel-row">
+      <canvas id="live" class="led" width="176" height="176"></canvas>
+      <div class="controls">
+        <div class="row">
+          <button id="power">Ein / Aus</button>
+          <button id="livetoggle" class="active">Vorschau</button>
+        </div>
+        <label for="brightness">Helligkeit <span id="brightnessVal">–</span> %</label>
+        <input type="range" id="brightness" min="0" max="100" step="1">
+        <label for="speed">Tempo <span id="speedVal">–</span> ×</label>
+        <input type="range" id="speed" min="0.2" max="4" step="0.1">
+      </div>
+    </div>
+  </section>
+
+  <!-- ---------------- Animationen ---------------- -->
+  <section class="card">
+    <h2>Animationen</h2>
+    <div id="builtins" class="grid"></div>
+
+    <h3>Hochgeladen</h3>
+    <div id="uploads"></div>
+    <p id="noUploads" class="note">Noch nichts hochgeladen.</p>
+  </section>
+
+  <!-- ---------------- Lauftext ---------------- -->
+  <section class="card">
+    <h2>Lauftext</h2>
+    <div class="row">
+      <input type="text" id="text" maxlength="64" placeholder="BOX OF LIFE">
+      <button id="textSave" class="icon">Speichern</button>
+    </div>
+    <p class="note">Wird im Modus „Lauftext“ angezeigt. Der 8×8-Font kann nur ASCII.</p>
+  </section>
+
+  <!-- ---------------- Upload ---------------- -->
+  <section class="card">
+    <h2>Bild oder GIF hochladen</h2>
+
+    <div id="drop" class="drop">
+      Datei hierher ziehen oder <u>auswählen</u><br>
+      <span style="font-size:0.8rem">PNG, JPG, WebP oder animiertes GIF</span>
+    </div>
+    <input type="file" id="file" accept="image/*" class="hidden">
+
+    <div id="editor" class="hidden">
+      <div class="panel-row" style="margin-top:1rem">
+        <canvas id="preview" class="led" width="176" height="176"></canvas>
+        <div class="controls">
+          <div id="srcInfo" class="note" style="margin-top:0"></div>
+          <label for="threshold">Schwelle <span id="thresholdVal"></span></label>
+          <input type="range" id="threshold" min="0" max="255" step="1" value="128">
+          <label for="contrast">Kontrast <span id="contrastVal"></span> %</label>
+          <input type="range" id="contrast" min="20" max="300" step="5" value="100">
+          <label for="bright">Bildhelligkeit <span id="brightVal"></span></label>
+          <input type="range" id="bright" min="-100" max="100" step="5" value="0">
+        </div>
+      </div>
+
+      <div class="opts">
+        <div>
+          <label for="dither">Dithering</label>
+          <select id="dither">
+            <option value="none">aus (harte Schwelle)</option>
+            <option value="floyd" selected>Floyd-Steinberg</option>
+            <option value="atkinson">Atkinson</option>
+            <option value="bayer">Bayer 4×4</option>
+          </select>
+        </div>
+        <div>
+          <label for="fit">Skalierung</label>
+          <select id="fit">
+            <option value="contain" selected>einpassen</option>
+            <option value="cover">füllen (beschneiden)</option>
+            <option value="stretch">verzerren</option>
+          </select>
+        </div>
+        <div>
+          <label for="rotate">Drehung</label>
+          <select id="rotate">
+            <option value="0" selected>0°</option>
+            <option value="90">90°</option>
+            <option value="180">180°</option>
+            <option value="270">270°</option>
+          </select>
+        </div>
+        <div>
+          <label for="maxFrames">max. Frames</label>
+          <input type="number" id="maxFrames" min="1" max="300" value="120">
+        </div>
+        <div>
+          <label for="fps">Tempo der Frames <span id="fpsVal">1.0</span> ×</label>
+          <input type="range" id="fps" min="0.25" max="4" step="0.25" value="1">
+        </div>
+        <div>
+          <label for="stillDelay">Standbild-Dauer (ms)</label>
+          <input type="number" id="stillDelay" min="20" max="5000" step="20" value="1000">
+        </div>
+      </div>
+
+      <div class="checks">
+        <label><input type="checkbox" id="invert"> invertieren</label>
+        <label><input type="checkbox" id="flipH"> horizontal spiegeln</label>
+        <label><input type="checkbox" id="flipV"> vertikal spiegeln</label>
+        <label><input type="checkbox" id="playAfter" checked> nach Upload abspielen</label>
+      </div>
+
+      <h3>Speichern</h3>
+      <div class="row">
+        <input type="text" id="animName" maxlength="24" placeholder="Name">
+        <button id="upload" class="primary icon">Hochladen</button>
+      </div>
+      <div id="uploadMsg" class="msg"></div>
+    </div>
+
+    <div id="loadMsg" class="msg"></div>
+  </section>
+
+  <!-- ---------------- System ---------------- -->
+  <section class="card">
+    <h2>System</h2>
+    <details>
+      <summary>WLAN einrichten</summary>
+      <label for="ssid">SSID</label>
+      <input type="text" id="ssid" autocomplete="off">
+      <label for="pass">Passwort</label>
+      <input type="password" id="pass" autocomplete="off">
+      <p class="note">Die Box startet nach dem Speichern neu und verbindet sich mit diesem Netz.
+        Klappt das nicht, öffnet sie wieder ihren eigenen Access Point.</p>
+      <div class="row" style="margin-top:0.6rem">
+        <button id="wifiSave">Speichern &amp; Neustart</button>
+        <button id="reboot">Nur Neustart</button>
+      </div>
+      <div id="sysMsg" class="msg"></div>
+    </details>
+    <p id="sysInfo" class="note"></p>
+  </section>
+
+</main>
+
+<script>
+"use strict";
+
+/* ---------------------------------------------------------------- helpers */
+
+const $ = (id) => document.getElementById(id);
+
+async function api(path, opts) {
+  const res = await fetch(path, opts);
+  if (!res.ok) {
+    let msg = res.status + " " + res.statusText;
+    try { msg = (await res.json()).error || msg; } catch (e) {}
+    throw new Error(msg);
+  }
+  return res;
+}
+
+const patchState = (data) =>
+  api("/api/state", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  }).then((r) => r.json()).then(applyState);
+
+function debounce(fn, ms) {
+  let t;
+  return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); };
+}
+
+function setMsg(el, text, kind) {
+  el.textContent = text || "";
+  el.className = "msg" + (kind ? " " + kind : "");
+}
+
+/* ------------------------------------------------------- LED canvas render */
+
+const getBit = (frame, x, y) => (frame[(y >> 3) * 16 + x] >> (y & 7)) & 1;
+
+function drawFrame(canvas, frame) {
+  const ctx = canvas.getContext("2d");
+  const cell = canvas.width / 16;
+  const r = cell * 0.36;
+  ctx.fillStyle = "#08080a";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  for (let y = 0; y < 16; y++) {
+    for (let x = 0; x < 16; x++) {
+      const on = frame ? getBit(frame, x, y) : 0;
+      ctx.beginPath();
+      ctx.arc(x * cell + cell / 2, y * cell + cell / 2, r, 0, 6.2832);
+      ctx.fillStyle = on ? "#ffd9a0" : "#1b1b22";
+      ctx.fill();
+      if (on) {
+        ctx.shadowBlur = cell * 0.6;
+        ctx.shadowColor = "rgba(255,190,110,0.75)";
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+    }
+  }
+}
+
+/* ------------------------------------------------------------- live status */
+
+let state = null;
+let liveTimer = null;
+
+function applyState(s) {
+  state = s;
+
+  const net = s.net || {};
+  const st = $("status");
+  if (net.mode === "sta") {
+    st.textContent = net.ssid + " · " + net.ip;
+    st.className = "pill ok";
+  } else if (net.mode === "ap") {
+    st.textContent = "Access Point · " + net.ip;
+    st.className = "pill";
+  } else {
+    st.textContent = "offline";
+    st.className = "pill bad";
+  }
+
+  if (document.activeElement !== $("brightness")) $("brightness").value = s.brightness;
+  $("brightnessVal").textContent = s.brightness;
+  if (document.activeElement !== $("speed")) $("speed").value = s.speed;
+  $("speedVal").textContent = Number(s.speed).toFixed(1);
+  if (document.activeElement !== $("text")) $("text").value = s.text;
+  $("power").className = s.on ? "active" : "";
+
+  const bi = $("builtins");
+  bi.innerHTML = "";
+  for (const b of s.builtins) {
+    const btn = document.createElement("button");
+    btn.textContent = b.label;
+    btn.className = s.on && s.mode === b.id ? "active" : "";
+    btn.onclick = () => patchState({ mode: b.id, on: true }).catch(showErr);
+    bi.appendChild(btn);
+  }
+
+  const up = $("uploads");
+  up.innerHTML = "";
+  $("noUploads").classList.toggle("hidden", s.animations.length > 0);
+  for (const a of s.animations) {
+    const mode = "file:" + a.name;
+    const row = document.createElement("div");
+    row.className = "anim-item" + (s.on && s.mode === mode ? " active" : "");
+
+    const name = document.createElement("span");
+    name.className = "name";
+    name.textContent = a.name;
+    row.appendChild(name);
+
+    const meta = document.createElement("span");
+    meta.className = "meta";
+    meta.textContent = a.frames + (a.frames === 1 ? " Bild" : " Frames");
+    row.appendChild(meta);
+
+    const play = document.createElement("button");
+    play.className = "icon";
+    play.textContent = "▶";
+    play.title = "abspielen";
+    play.onclick = () => patchState({ mode: mode, on: true }).catch(showErr);
+    row.appendChild(play);
+
+    const load = document.createElement("button");
+    load.className = "icon";
+    load.textContent = "👁";
+    load.title = "in der Vorschau ansehen";
+    load.onclick = () => loadAnimIntoPreview(a.name).catch(showErr);
+    row.appendChild(load);
+
+    const del = document.createElement("button");
+    del.className = "icon danger";
+    del.textContent = "✕";
+    del.title = "löschen";
+    del.onclick = () => {
+      if (!confirm("„" + a.name + "“ löschen?")) return;
+      api("/api/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: a.name }),
+      }).then((r) => r.json()).then(applyState).catch(showErr);
+    };
+    row.appendChild(del);
+
+    up.appendChild(row);
+  }
+
+  $("sysInfo").textContent =
+    "Freier Speicher: " + Math.round((s.free || 0) / 1024) + " kB · " +
+    "max. " + s.max_frames + " Frames pro Animation · Zeit: " +
+    (net.ntp ? "per NTP gesetzt" : "nicht gesetzt");
+  $("maxFrames").max = s.max_frames;
+}
+
+function showErr(e) {
+  console.error(e);
+  setMsg($("uploadMsg"), String(e.message || e), "err");
+}
+
+async function refresh() {
+  applyState(await (await api("/api/state")).json());
+}
+
+async function pollFrame() {
+  try {
+    const buf = await (await fetch("/api/frame?t=" + Date.now())).arrayBuffer();
+    drawFrame($("live"), new Uint8Array(buf));
+  } catch (e) { /* keep the last frame on a hiccup */ }
+}
+
+function setLive(on) {
+  clearInterval(liveTimer);
+  liveTimer = on ? setInterval(pollFrame, 250) : null;
+  $("livetoggle").className = on ? "active" : "";
+  if (on) pollFrame();
+}
+
+/* -------------------------------------------------------- controls wiring */
+
+$("power").onclick = () => patchState({ on: !(state && state.on) }).catch(showErr);
+$("livetoggle").onclick = () => setLive(!liveTimer);
+
+const pushBrightness = debounce((v) => patchState({ brightness: v }).catch(showErr), 120);
+$("brightness").oninput = (e) => {
+  $("brightnessVal").textContent = e.target.value;
+  pushBrightness(Number(e.target.value));
+};
+
+const pushSpeed = debounce((v) => patchState({ speed: v }).catch(showErr), 120);
+$("speed").oninput = (e) => {
+  $("speedVal").textContent = Number(e.target.value).toFixed(1);
+  pushSpeed(Number(e.target.value));
+};
+
+$("textSave").onclick = () =>
+  patchState({ text: $("text").value, mode: "text", on: true }).catch(showErr);
+
+$("wifiSave").onclick = async () => {
+  const ssid = $("ssid").value.trim();
+  if (!ssid) { setMsg($("sysMsg"), "SSID fehlt.", "err"); return; }
+  try {
+    await api("/api/wifi", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ssid: ssid, password: $("pass").value }),
+    });
+    setMsg($("sysMsg"), "Gespeichert, Box startet neu …", "ok");
+  } catch (e) { setMsg($("sysMsg"), String(e.message || e), "err"); }
+};
+
+$("reboot").onclick = async () => {
+  if (!confirm("Box neu starten?")) return;
+  try {
+    await api("/api/reboot", { method: "POST" });
+    setMsg($("sysMsg"), "Neustart läuft …", "ok");
+  } catch (e) { setMsg($("sysMsg"), String(e.message || e), "err"); }
+};
+
+/* ============================================================== GIF decoder
+   Small self-contained GIF87a/89a parser. The box serves this page itself,
+   so there is no CDN to pull a library from.
+   ======================================================================== */
+
+function lzwDecode(minCodeSize, data, pixelCount) {
+  const MAX = 4096;
+  const out = new Uint8Array(pixelCount);
+  const prefix = new Int32Array(MAX);
+  const suffix = new Uint8Array(MAX);
+  const stack = new Uint8Array(MAX + 1);
+  const clear = 1 << minCodeSize;
+  const eoi = clear + 1;
+
+  for (let i = 0; i < clear; i++) suffix[i] = i;
+
+  let codeSize = minCodeSize + 1;
+  let mask = (1 << codeSize) - 1;
+  let next = clear + 2;
+  let bitBuf = 0, bitCount = 0, pos = 0, oi = 0, sp = 0;
+  let prev = -1, firstByte = 0;
+
+  while (oi < pixelCount) {
+    if (sp > 0) { out[oi++] = stack[--sp]; continue; }
+    while (bitCount < codeSize) {
+      if (pos >= data.length) return out;
+      bitBuf |= data[pos++] << bitCount;
+      bitCount += 8;
+    }
+    const code = bitBuf & mask;
+    bitBuf >>= codeSize;
+    bitCount -= codeSize;
+
+    if (code === clear) {
+      codeSize = minCodeSize + 1;
+      mask = (1 << codeSize) - 1;
+      next = clear + 2;
+      prev = -1;
+      continue;
+    }
+    if (code === eoi) break;
+
+    let cur = code;
+    if (code >= next) {
+      if (prev < 0) break;
+      stack[sp++] = firstByte;
+      cur = prev;
+    }
+    while (cur >= clear) { stack[sp++] = suffix[cur]; cur = prefix[cur]; }
+    firstByte = suffix[cur];
+    stack[sp++] = firstByte;
+
+    if (prev >= 0 && next < MAX) {
+      prefix[next] = prev;
+      suffix[next] = firstByte;
+      next++;
+      if (next === (1 << codeSize) && codeSize < 12) {
+        codeSize++;
+        mask = (1 << codeSize) - 1;
+      }
+    }
+    prev = code;
+  }
+  return out;
+}
+
+function parseGIF(buffer) {
+  const d = new Uint8Array(buffer);
+  let p = 0;
+  const u16 = () => { const v = d[p] | (d[p + 1] << 8); p += 2; return v; };
+
+  if (d[0] !== 0x47 || d[1] !== 0x49 || d[2] !== 0x46) throw new Error("Keine GIF-Datei");
+  p = 6;
+  const width = u16(), height = u16();
+  const flags = d[p++];
+  p += 2; // background color index + pixel aspect ratio
+
+  let gct = null;
+  if (flags & 0x80) {
+    const n = 2 << (flags & 7);
+    gct = d.subarray(p, p + n * 3);
+    p += n * 3;
+  }
+
+  const frames = [];
+  let delay = 10, transparent = -1, disposal = 0;
+
+  while (p < d.length) {
+    const block = d[p++];
+    if (block === 0x21) {                       // extension
+      const label = d[p++];
+      if (label === 0xf9) {                     // graphic control
+        const size = d[p++];
+        const packed = d[p];
+        disposal = (packed >> 2) & 7;
+        delay = d[p + 1] | (d[p + 2] << 8);
+        transparent = packed & 1 ? d[p + 3] : -1;
+        p += size + 1;                          // + block terminator
+      } else {
+        let sz;
+        while ((sz = d[p++])) p += sz;
+      }
+    } else if (block === 0x2c) {                // image descriptor
+      const ix = u16(), iy = u16(), iw = u16(), ih = u16();
+      const f2 = d[p++];
+      let lct = null;
+      if (f2 & 0x80) {
+        const n = 2 << (f2 & 7);
+        lct = d.subarray(p, p + n * 3);
+        p += n * 3;
+      }
+      const interlaced = !!(f2 & 0x40);
+      const minCodeSize = d[p++];
+
+      const chunks = [];
+      let total = 0, sz;
+      while ((sz = d[p++])) { chunks.push(d.subarray(p, p + sz)); total += sz; p += sz; }
+      const data = new Uint8Array(total);
+      let o = 0;
+      for (const c of chunks) { data.set(c, o); o += c.length; }
+
+      frames.push({
+        x: ix, y: iy, w: iw, h: ih,
+        pixels: lzwDecode(minCodeSize, data, iw * ih),
+        palette: lct || gct,
+        transparent: transparent,
+        disposal: disposal,
+        interlaced: interlaced,
+        delay: delay <= 1 ? 100 : delay * 10,
+      });
+      transparent = -1;
+      disposal = 0;
+    } else if (block === 0x3b) {                // trailer
+      break;
+    } else if (block === 0) {
+      // stray block terminator, ignore
+    } else {
+      break;                                     // unknown block, stop here
+    }
+  }
+  if (!frames.length) throw new Error("GIF enthält keine Bilder");
+  return { width: width, height: height, frames: frames };
+}
+
+function interlaceOrder(h) {
+  const o = [];
+  for (let y = 0; y < h; y += 8) o.push(y);
+  for (let y = 4; y < h; y += 8) o.push(y);
+  for (let y = 2; y < h; y += 4) o.push(y);
+  for (let y = 1; y < h; y += 2) o.push(y);
+  return o;
+}
+
+/* ------------------------------------------------- source frames (16x16-ish)
+
+   Decoded frames are kept at a bounded intermediate size so that even a long
+   GIF stays small in memory. Everything after this works on those.          */
+
+const INTERMEDIATE_MAX = 160;
+
+function composeGIF(gif, maxFrames) {
+  const full = document.createElement("canvas");
+  full.width = gif.width;
+  full.height = gif.height;
+  const fctx = full.getContext("2d", { willReadFrequently: true });
+
+  const scale = Math.min(1, INTERMEDIATE_MAX / Math.max(gif.width, gif.height));
+  const mid = document.createElement("canvas");
+  mid.width = Math.max(1, Math.round(gif.width * scale));
+  mid.height = Math.max(1, Math.round(gif.height * scale));
+  const mctx = mid.getContext("2d", { willReadFrequently: true });
+
+  const step = Math.ceil(gif.frames.length / maxFrames);
+  const out = [];
+  let saved = null;
+  let pending = 0;
+
+  gif.frames.forEach((fr, i) => {
+    if (fr.disposal === 3) saved = fctx.getImageData(0, 0, gif.width, gif.height);
+
+    const under = fctx.getImageData(fr.x, fr.y, fr.w, fr.h);
+    const img = fctx.createImageData(fr.w, fr.h);
+    const dst = img.data, src = under.data, pal = fr.palette;
+    const rows = fr.interlaced ? interlaceOrder(fr.h) : null;
+
+    for (let r = 0; r < fr.h; r++) {
+      const destRow = rows ? rows[r] : r;
+      if (destRow === undefined || destRow >= fr.h) continue;
+      for (let x = 0; x < fr.w; x++) {
+        const idx = fr.pixels[r * fr.w + x];
+        const o = (destRow * fr.w + x) * 4;
+        if (idx === fr.transparent || !pal) {
+          dst[o] = src[o]; dst[o + 1] = src[o + 1];
+          dst[o + 2] = src[o + 2]; dst[o + 3] = src[o + 3];
+        } else {
+          const c = idx * 3;
+          dst[o] = pal[c]; dst[o + 1] = pal[c + 1];
+          dst[o + 2] = pal[c + 2]; dst[o + 3] = 255;
+        }
+      }
+    }
+    fctx.putImageData(img, fr.x, fr.y);
+
+    pending += fr.delay;
+    if (i % step === 0 || i === gif.frames.length - 1) {
+      mctx.clearRect(0, 0, mid.width, mid.height);
+      mctx.drawImage(full, 0, 0, mid.width, mid.height);
+      out.push({ data: mctx.getImageData(0, 0, mid.width, mid.height), delay: pending });
+      pending = 0;
+    }
+
+    if (fr.disposal === 2) fctx.clearRect(fr.x, fr.y, fr.w, fr.h);
+    else if (fr.disposal === 3 && saved) fctx.putImageData(saved, 0, 0);
+  });
+
+  return out;
+}
+
+function composeStill(bitmap) {
+  const scale = Math.min(1, INTERMEDIATE_MAX / Math.max(bitmap.width, bitmap.height));
+  const mid = document.createElement("canvas");
+  mid.width = Math.max(1, Math.round(bitmap.width * scale));
+  mid.height = Math.max(1, Math.round(bitmap.height * scale));
+  const ctx = mid.getContext("2d", { willReadFrequently: true });
+  ctx.drawImage(bitmap, 0, 0, mid.width, mid.height);
+  return [{ data: ctx.getImageData(0, 0, mid.width, mid.height), delay: 0 }];
+}
+
+/* -------------------------------------------------- geometry + 1 bit output */
+
+const scratch = document.createElement("canvas");
+const tiny = document.createElement("canvas");
+tiny.width = tiny.height = 16;
+const tinyCtx = tiny.getContext("2d", { willReadFrequently: true });
+
+function toGray(src, geo) {
+  scratch.width = src.width;
+  scratch.height = src.height;
+  scratch.getContext("2d").putImageData(src, 0, 0);
+
+  tinyCtx.setTransform(1, 0, 0, 1, 0, 0);
+  tinyCtx.fillStyle = "#000";
+  tinyCtx.fillRect(0, 0, 16, 16);
+  tinyCtx.imageSmoothingEnabled = true;
+  tinyCtx.save();
+  tinyCtx.translate(8, 8);
+  tinyCtx.rotate((geo.rotate * Math.PI) / 180);
+  tinyCtx.scale(geo.flipH ? -1 : 1, geo.flipV ? -1 : 1);
+
+  let dw, dh;
+  if (geo.fit === "stretch") {
+    dw = dh = 16;
+  } else {
+    const sx = 16 / src.width, sy = 16 / src.height;
+    const s = geo.fit === "cover" ? Math.max(sx, sy) : Math.min(sx, sy);
+    dw = src.width * s;
+    dh = src.height * s;
+  }
+  tinyCtx.drawImage(scratch, -dw / 2, -dh / 2, dw, dh);
+  tinyCtx.restore();
+
+  const px = tinyCtx.getImageData(0, 0, 16, 16).data;
+  const gray = new Float32Array(256);
+  for (let i = 0; i < 256; i++) {
+    gray[i] = 0.299 * px[i * 4] + 0.587 * px[i * 4 + 1] + 0.114 * px[i * 4 + 2];
+  }
+  return gray;
+}
+
+const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+
+function quantize(gray, tone) {
+  const v = new Float32Array(256);
+  const c = tone.contrast / 100, b = tone.bright * 1.28;
+  for (let i = 0; i < 256; i++) v[i] = (gray[i] - 128) * c + 128 + b;
+
+  const bits = new Uint8Array(256);
+  const t = tone.threshold;
+
+  if (tone.dither === "none" || tone.dither === "bayer") {
+    for (let y = 0; y < 16; y++) {
+      for (let x = 0; x < 16; x++) {
+        const i = y * 16 + x;
+        const th = tone.dither === "bayer"
+          ? t + (BAYER[(y & 3) * 4 + (x & 3)] - 7.5) * 12
+          : t;
+        bits[i] = v[i] > th ? 1 : 0;
+      }
+    }
+  } else {
+    const fs = tone.dither === "floyd";
+    for (let y = 0; y < 16; y++) {
+      for (let x = 0; x < 16; x++) {
+        const i = y * 16 + x;
+        const on = v[i] > t ? 1 : 0;
+        bits[i] = on;
+        const err = v[i] - (on ? 255 : 0);
+        const spread = (dx, dy, f) => {
+          const nx = x + dx, ny = y + dy;
+          if (nx < 0 || nx > 15 || ny > 15) return;
+          v[ny * 16 + nx] += err * f;
+        };
+        if (fs) {
+          spread(1, 0, 7 / 16); spread(-1, 1, 3 / 16);
+          spread(0, 1, 5 / 16); spread(1, 1, 1 / 16);
+        } else {
+          const f = 1 / 8;
+          spread(1, 0, f); spread(2, 0, f); spread(-1, 1, f);
+          spread(0, 1, f); spread(1, 1, f); spread(0, 2, f);
+        }
+      }
+    }
+  }
+
+  const frame = new Uint8Array(32);
+  for (let y = 0; y < 16; y++) {
+    for (let x = 0; x < 16; x++) {
+      let on = bits[y * 16 + x];
+      if (tone.invert) on = on ? 0 : 1;
+      if (on) frame[(y >> 3) * 16 + x] |= 1 << (y & 7);
+    }
+  }
+  return frame;
+}
+
+/* ---------------------------------------------------------- editor pipeline */
+
+let srcFrames = [];   // [{data: ImageData, delay}]
+let grayFrames = [];  // [Float32Array(256)]
+let outFrames = [];   // [{frame: Uint8Array(32), delay}]
+let geoKey = "";
+let previewTimer = null;
+let previewIndex = 0;
+
+const readGeo = () => ({
+  fit: $("fit").value,
+  rotate: Number($("rotate").value),
+  flipH: $("flipH").checked,
+  flipV: $("flipV").checked,
+});
+
+const readTone = () => ({
+  threshold: Number($("threshold").value),
+  contrast: Number($("contrast").value),
+  bright: Number($("bright").value),
+  dither: $("dither").value,
+  invert: $("invert").checked,
+});
+
+function rebuild() {
+  if (!srcFrames.length) return;
+
+  const geo = readGeo();
+  const key = JSON.stringify(geo);
+  if (key !== geoKey) {
+    geoKey = key;
+    grayFrames = srcFrames.map((f) => toGray(f.data, geo));
+  }
+
+  const tone = readTone();
+  const speed = Number($("fps").value);
+  const still = Number($("stillDelay").value) || 1000;
+
+  outFrames = grayFrames.map((g, i) => {
+    const raw = srcFrames[i].delay || still;
+    const delay = Math.max(20, Math.min(5000, Math.round(raw / speed)));
+    return { frame: quantize(g, tone), delay: delay };
+  });
+
+  startPreview();
+}
+
+const rebuildSoon = debounce(rebuild, 60);
+
+function startPreview() {
+  clearTimeout(previewTimer);
+  if (!outFrames.length) return;
+  if (previewIndex >= outFrames.length) previewIndex = 0;
+  const tick = () => {
+    const f = outFrames[previewIndex % outFrames.length];
+    drawFrame($("preview"), f.frame);
+    previewIndex = (previewIndex + 1) % outFrames.length;
+    if (outFrames.length > 1) previewTimer = setTimeout(tick, f.delay);
+  };
+  tick();
+}
+
+async function loadFile(file) {
+  setMsg($("loadMsg"), "lese " + file.name + " …");
+  clearTimeout(previewTimer);
+  const maxFrames = Math.max(1, Math.min(state ? state.max_frames : 300,
+                                         Number($("maxFrames").value) || 120));
+  try {
+    const isGif = file.type === "image/gif" || /\.gif$/i.test(file.name);
+    if (isGif) {
+      const gif = parseGIF(await file.arrayBuffer());
+      srcFrames = composeGIF(gif, maxFrames);
+      $("srcInfo").textContent =
+        gif.width + "×" + gif.height + " GIF · " + gif.frames.length +
+        " Frames" + (srcFrames.length < gif.frames.length
+          ? " → auf " + srcFrames.length + " reduziert" : "");
+    } else {
+      const bmp = await createImageBitmap(file);
+      srcFrames = composeStill(bmp);
+      $("srcInfo").textContent = bmp.width + "×" + bmp.height + " Standbild";
+      bmp.close && bmp.close();
+    }
+    geoKey = "";
+    previewIndex = 0;
+    if (!$("animName").value) {
+      $("animName").value = file.name.replace(/\.[^.]+$/, "").slice(0, 24);
+    }
+    $("editor").classList.remove("hidden");
+    setMsg($("loadMsg"), "");
+    setMsg($("uploadMsg"), "");
+    rebuild();
+  } catch (e) {
+    console.error(e);
+    setMsg($("loadMsg"), "Konnte die Datei nicht lesen: " + (e.message || e), "err");
+  }
+}
+
+async function loadAnimIntoPreview(name) {
+  const buf = await (await api("/api/anim?name=" + encodeURIComponent(name))).arrayBuffer();
+  const d = new Uint8Array(buf);
+  const count = d[6] | (d[7] << 8);
+  outFrames = [];
+  for (let i = 0; i < count; i++) {
+    const o = 12 + i * 34;
+    outFrames.push({ delay: d[o] | (d[o + 1] << 8), frame: d.slice(o + 2, o + 34) });
+  }
+  srcFrames = [];
+  grayFrames = [];
+  previewIndex = 0;
+  $("editor").classList.remove("hidden");
+  $("srcInfo").textContent = "gespeicherte Animation „" + name + "“ · " + count + " Frames";
+  $("animName").value = name;
+  startPreview();
+  $("editor").scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+/* ------------------------------------------------------------------ upload */
+
+function buildFile(frames, name) {
+  const buf = new ArrayBuffer(12 + frames.length * 34);
+  const view = new DataView(buf);
+  const bytes = new Uint8Array(buf);
+  bytes.set([0x46, 0x52, 0x4b, 0x31], 0);   // "FRK1"
+  view.setUint8(4, 1);                      // version
+  view.setUint8(5, 0);                      // flags
+  view.setUint16(6, frames.length, true);
+  view.setUint16(8, frames[0].delay, true); // default delay
+  view.setUint16(10, 0, true);
+  frames.forEach((f, i) => {
+    const o = 12 + i * 34;
+    view.setUint16(o, f.delay, true);
+    bytes.set(f.frame, o + 2);
+  });
+  return buf;
+}
+
+$("upload").onclick = async () => {
+  if (!outFrames.length) return;
+  const name = $("animName").value.trim();
+  if (!name) { setMsg($("uploadMsg"), "Bitte einen Namen eingeben.", "err"); return; }
+  if (state && outFrames.length > state.max_frames) {
+    setMsg($("uploadMsg"), "Zu viele Frames.", "err");
+    return;
+  }
+
+  $("upload").disabled = true;
+  setMsg($("uploadMsg"), "lade hoch …");
+  try {
+    const q = "?name=" + encodeURIComponent(name) + ($("playAfter").checked ? "&play=1" : "");
+    const res = await api("/api/upload" + q, {
+      method: "POST",
+      headers: { "Content-Type": "application/octet-stream" },
+      body: buildFile(outFrames, name),
+    });
+    const info = await res.json();
+    setMsg($("uploadMsg"), "Gespeichert: " + info.name + " (" + info.frames + " Frames)", "ok");
+    await refresh();
+  } catch (e) {
+    setMsg($("uploadMsg"), "Upload fehlgeschlagen: " + (e.message || e), "err");
+  } finally {
+    $("upload").disabled = false;
+  }
+};
+
+/* ------------------------------------------------------------ editor wiring */
+
+for (const id of ["threshold", "contrast", "bright", "dither", "invert", "fps", "stillDelay"]) {
+  $(id).addEventListener("input", () => {
+    $("thresholdVal").textContent = $("threshold").value;
+    $("contrastVal").textContent = $("contrast").value;
+    $("brightVal").textContent = $("bright").value;
+    $("fpsVal").textContent = Number($("fps").value).toFixed(2);
+    rebuildSoon();
+  });
+}
+for (const id of ["fit", "rotate", "flipH", "flipV"]) {
+  $(id).addEventListener("input", rebuildSoon);
+}
+
+$("drop").onclick = () => $("file").click();
+$("file").onchange = (e) => { if (e.target.files[0]) loadFile(e.target.files[0]); };
+["dragenter", "dragover"].forEach((ev) =>
+  $("drop").addEventListener(ev, (e) => { e.preventDefault(); $("drop").classList.add("over"); }));
+["dragleave", "drop"].forEach((ev) =>
+  $("drop").addEventListener(ev, (e) => { e.preventDefault(); $("drop").classList.remove("over"); }));
+$("drop").addEventListener("drop", (e) => {
+  const f = e.dataTransfer.files[0];
+  if (f) loadFile(f);
+});
+
+/* -------------------------------------------------------------------- start */
+
+$("thresholdVal").textContent = $("threshold").value;
+$("contrastVal").textContent = $("contrast").value;
+$("brightVal").textContent = $("bright").value;
+
+drawFrame($("live"), null);
+drawFrame($("preview"), null);
+refresh().catch((e) => { $("status").textContent = "offline"; $("status").className = "pill bad"; });
+setInterval(() => refresh().catch(() => {}), 5000);
+setLive(true);
+</script>
+</body>
+</html>

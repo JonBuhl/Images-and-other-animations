@@ -1,5 +1,5 @@
 import time
-import uasyncio
+import asyncio
 from micropython import const
 
 
@@ -10,20 +10,20 @@ DEBOUNCE_INTERVAL = const(20)
 async def wait_for(pin, value):
     while True:
         if pin.value() == value:
-            await uasyncio.sleep_ms(DEBOUNCE_INTERVAL)
+            await asyncio.sleep_ms(DEBOUNCE_INTERVAL)
             if pin.value() == value:
                 return
-        await uasyncio.sleep_ms(DEBOUNCE_INTERVAL)
+        await asyncio.sleep_ms(DEBOUNCE_INTERVAL)
 
 
 async def wait_for_or_timeout(pin, value, timeout):
     start = time.ticks_ms()
     while True:
         if pin.value() == value:
-            await uasyncio.sleep_ms(20)
+            await asyncio.sleep_ms(DEBOUNCE_INTERVAL)
             if pin.value() == value:
                 return time.ticks_diff(time.ticks_ms(), start)
-        await uasyncio.sleep_ms(20)
+        await asyncio.sleep_ms(DEBOUNCE_INTERVAL)
         if time.ticks_diff(time.ticks_ms(), start) > timeout:
             return -1
 
