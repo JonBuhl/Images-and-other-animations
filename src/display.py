@@ -35,7 +35,13 @@ _spi = SPI(
 _pwm = PWM(Pin(config.PIN_EN), freq=config.PWM_FREQ, duty_u16=65535)
 
 # bit reversal table (SPI sends MSB first, the panel expects LSB first)
-_REV = bytes(int("{:08b}".format(i)[::-1], 2) for i in range(256))
+def _rev8(b):
+    b = ((b & 0xF0) >> 4) | ((b & 0x0F) << 4)
+    b = ((b & 0xCC) >> 2) | ((b & 0x33) << 2)
+    b = ((b & 0xAA) >> 1) | ((b & 0x55) << 1)
+    return b
+
+_REV = bytes(_rev8(i) for i in range(256))
 
 _brightness = 0
 
