@@ -260,6 +260,36 @@ class TextAnimation(Animation):
 
 # --- Clock -------------------------------------------------------------------
 
+_WD_T = (0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4)
+
+
+def _weekday(y, m, d):
+    """Day of week (0 = Sunday .. 6 = Saturday) — Sakamoto's algorithm."""
+    if m < 3:
+        y -= 1
+    return (y + y // 4 - y // 100 + y // 400 + _WD_T[m - 1] + d) % 7
+
+
+def _is_dst(tm):
+    """European summer time (CEST): from the last Sunday of March 01:00 UTC
+    until the last Sunday of October 01:00 UTC."""
+    year, month, day, hour = tm[0], tm[1], tm[2], tm[3]
+    last_mar = 31 - _weekday(year, 3, 31)
+    last_oct = 31 - _weekday(year, 10, 31)
+    if month < 3 or month > 10:
+        return False
+    if 3 < month < 10:
+        return True
+    if month == 3:
+        if day > last_mar:
+            return True
+        return day == last_mar and hour >= 1
+    # October
+    if day < last_oct:
+        return True
+    return day == last_oct and hour < 1
+
+
 class ClockAnimation(Animation):
     name = "clock"
     label = "Uhr"
@@ -268,7 +298,11 @@ class ClockAnimation(Animation):
     async def run(self):
         s = self.screen
         while True:
-            now = time.localtime(time.time() + int(self.player.tz * 3600))
+            t = time.time()
+            offset = int(self.player.tz * 3600)
+            if _is_dst(time.localtime(t)):
+                offset += 3600
+            now = time.localtime(t + offset)
             s.clear()
             if self.player.net.get("ntp"):
                 s.text("{:02d}".format(now[3]), 0, 0, 1)
