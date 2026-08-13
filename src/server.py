@@ -5,6 +5,9 @@ Endpoints:
     GET  /                 web UI
     GET  /api/state        full state (settings, built-ins, uploads)
     POST /api/state        partial state update, JSON body
+    POST /api/message      show a scrolling custom message, {"message": "..."}
+    POST /api/rotate       set clockwise rotation, {"rotate": 90}
+    POST /api/mirror       set horizontal mirror, {"mirror": true}
     GET  /api/frame        the 32 raw bytes currently on the panel
     GET  /api/anim?name=   raw animation file (used for the browser preview)
     POST /api/upload?name= upload an animation (binary, see storage.py)
@@ -266,6 +269,46 @@ async def _route(reader, writer):
                 return
             await _json_response(writer, _player.state())
             return
+
+    # --- custom message ---
+    if method == "POST" and path == "/api/message":
+        data = await _read_json(reader, writer, headers)
+        if data is None:
+            return
+        msg = str(data.get("message", "")).strip()
+        if not msg:
+            await _error(writer, "400 Bad Request", "missing message")
+            return
+        _player.apply({"text": msg[:64], "mode": "text", "on": True})
+        await _json_response(writer, _player.state())
+        return
+
+    # --- orientation ---
+    if method == "POST" and path == "/api/rotate":
+        data = await _read_json(reader, writer, headers)
+        if data is None:
+            return
+        if "rotate" not in data:
+            await _error(writer, "400 Bad Request", "missing rotate")
+            return
+        try:
+            _player.apply({"rotate": data["rotate"]})
+        except (ValueError, TypeError) as e:
+            await _error(writer, "400 Bad Request", str(e))
+            return
+        await _json_response(writer, _player.state())
+        return
+
+    if method == "POST" and path == "/api/mirror":
+        data = await _read_json(reader, writer, headers)
+        if data is None:
+            return
+        if "mirror" not in data:
+            await _error(writer, "400 Bad Request", "missing mirror")
+            return
+        _player.apply({"mirror": data["mirror"]})
+        await _json_response(writer, _player.state())
+        return
 
     # --- live view of the panel ---
     if method == "GET" and path == "/api/frame":

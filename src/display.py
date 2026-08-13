@@ -60,6 +60,41 @@ def get_brightness():
     return _brightness
 
 
+# --- orientation -------------------------------------------------------------
+
+_rotate = config.DISPLAY_ROTATE
+_mirror = config.DISPLAY_MIRROR
+
+
+def set_orientation(rotate, mirror):
+    """Set the runtime display orientation (clockwise rotation + mirror)."""
+    global _rotate, _mirror
+    _rotate = rotate
+    _mirror = bool(mirror)
+
+
+def _transform(buf, rotate, mirror):
+    """Return a copy of the 16x16 MONO_VLSB framebuffer rotated clockwise by
+    `rotate` degrees (0/90/180/270) and then mirrored horizontally."""
+    out = bytearray(32)
+    for x in range(16):
+        for y in range(16):
+            bit = (buf[(y >> 3) * 16 + x] >> (y & 7)) & 1
+            if not bit:
+                continue
+            nx, ny = x, y
+            if rotate == 90:
+                nx, ny = 15 - y, x
+            elif rotate == 180:
+                nx, ny = 15 - x, 15 - y
+            elif rotate == 270:
+                nx, ny = y, 15 - x
+            if mirror:
+                nx = 15 - nx
+            out[(ny >> 3) * 16 + nx] |= 1 << (ny & 7)
+    return out
+
+
 # --- buffer operations -------------------------------------------------------
 
 class Screen(framebuf.FrameBuffer):
@@ -95,6 +130,8 @@ class Screen(framebuf.FrameBuffer):
         out = self._out
         buf = self.buffer
         rev = _REV
+        if _rotate or _mirror:
+            buf = _transform(buf, _rotate, _mirror)
         for i in range(32):
             out[i] = rev[buf[i]]
         _spi.write(out)

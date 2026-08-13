@@ -16,6 +16,8 @@ DEFAULTS = {
     "text": "BOX OF LIFE",
     "tz": 1.0,
     "on": True,
+    "rotate": config.DISPLAY_ROTATE,
+    "mirror": config.DISPLAY_MIRROR,
 }
 
 BRIGHTNESS_STEPS = (100, 60, 30, 10)
@@ -31,6 +33,9 @@ class Player:
         self.text = DEFAULTS["text"]
         self.tz = DEFAULTS["tz"]
         self.on = DEFAULTS["on"]
+        self.rotate = DEFAULTS["rotate"]
+        self.mirror = DEFAULTS["mirror"]
+        display.set_orientation(self.rotate, self.mirror)
         self.net = {"mode": "none", "ssid": None, "ip": "0.0.0.0", "ntp": False}
         self._change = asyncio.Event()
         self._dirty = False
@@ -52,6 +57,8 @@ class Player:
             "speed": self.speed,
             "text": self.text,
             "tz": self.tz,
+            "rotate": self.rotate,
+            "mirror": self.mirror,
             "net": self.net,
             "builtins": animations.builtin_list(),
             "animations": storage.list_animations(),
@@ -82,6 +89,18 @@ class Player:
 
         if "tz" in data:
             self.tz = max(-12.0, min(14.0, float(data["tz"])))
+
+        if "rotate" in data:
+            r = int(data["rotate"])
+            if r not in (0, 90, 180, 270):
+                raise ValueError("rotate must be 0, 90, 180 or 270")
+            self.rotate = r
+
+        if "mirror" in data:
+            self.mirror = bool(data["mirror"])
+
+        if "rotate" in data or "mirror" in data:
+            display.set_orientation(self.rotate, self.mirror)
 
         if "mode" in data:
             mode = str(data["mode"])
@@ -158,6 +177,9 @@ class Player:
                     pass
         if not animations.is_valid(self.mode):
             self.mode = DEFAULTS["mode"]
+        if self.rotate not in (0, 90, 180, 270):
+            self.rotate = DEFAULTS["rotate"]
+        display.set_orientation(self.rotate, self.mirror)
 
     def save_settings(self):
         data = {key: getattr(self, key) for key in DEFAULTS}

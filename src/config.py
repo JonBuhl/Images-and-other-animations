@@ -19,6 +19,12 @@ SPI_BAUDRATE = const(10000000)  # 10 MHz, the 74HC595 chain copes easily
 
 PWM_FREQ = const(1000)          # brightness PWM on the En line
 
+# Display orientation. The panel can be mounted any way round: rotate the
+# framebuffer clockwise by DISPLAY_ROTATE degrees and optionally mirror it
+# horizontally so the image comes out the right way up on the wall.
+DISPLAY_ROTATE = 90    # clockwise: 0, 90, 180 or 270
+DISPLAY_MIRROR = True  # horizontal mirror (left-right flip) after rotating
+
 # --- Buttons (optional, set to False if you did not wire them) ---------------
 
 BUTTONS_ENABLED = True

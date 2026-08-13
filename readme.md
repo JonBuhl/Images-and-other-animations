@@ -77,6 +77,16 @@ Layout of `src`:
 If the configured network is unavailable it falls back to the access point again, so you can never
 lock yourself out.
 
+### Display orientation
+
+The panel can be mounted any way round. `config.py` holds the defaults:
+
+- `DISPLAY_ROTATE` — clockwise rotation in degrees (`0`, `90`, `180` or `270`)
+- `DISPLAY_MIRROR` — horizontal mirror (`True`/`False`), applied *after* the rotation
+
+The orientation is part of the runtime state, so it survives a reboot and can be changed live
+via `POST /api/rotate` and `POST /api/mirror` (or `POST /api/state` with `rotate`/`mirror`).
+
 > ⚠ The web interface has **no authentication**. It is meant for a trusted home network — do not
 > forward the port to the internet.
 
@@ -123,6 +133,9 @@ The web page is just a client for this — handy for scripting.
 |--------|------|--------------|
 | `GET`  | `/api/state` | full state: settings, built-ins, uploads |
 | `POST` | `/api/state` | partial JSON, e.g. `{"mode":"plasma","brightness":80}` |
+| `POST` | `/api/message` | `{"message": "..."}` — show a scrolling custom message |
+| `POST` | `/api/rotate` | `{"rotate": 90}` — clockwise rotation (0/90/180/270) |
+| `POST` | `/api/mirror` | `{"mirror": true}` — horizontal mirror |
 | `GET`  | `/api/frame` | the 32 bytes currently on the panel |
 | `GET`  | `/api/anim?name=x` | raw animation file |
 | `POST` | `/api/upload?name=x&play=1` | animation file as `application/octet-stream` |
